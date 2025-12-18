@@ -3,79 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="description" content="Professional Project Cost Calculator">
     <title>BidBase</title>
+    
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- External Libraries (Deferred for performance) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Screenshot Generation Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #334155; /* Slate 700 */
-            --accent: #2563eb; /* Blue 600 */
-            --bg: #f8fafc; /* Slate 50 */
-        }
-
-        body {
-            background-color: var(--bg);
-            -webkit-tap-highlight-color: transparent;
-            padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Space for sticky footer */
-        }
-
-        /* Prevent background scroll when modal is open */
-        body.modal-open {
-            overflow: hidden;
-            height: 100vh;
-        }
-
-        /* iOS Input Zoom Prevention */
-        input, select, textarea {
-            font-size: 16px !important; 
-        }
-
-        /* Safe Area Handling */
-        .safe-top {
-            padding-top: env(safe-area-inset-top);
-        }
-        .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-
-        /* Animations */
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .slide-down {
-            animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes slideDown {
-            from { transform: translateY(-100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        /* Number input toggle removal */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
-        }
-    </style>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Application Logic (Deferred to unblock rendering) -->
+    <script src="app.js" defer></script>
 </head>
 <body class="text-slate-800 font-sans antialiased relative">
 
@@ -95,7 +41,8 @@
     <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50 safe-top">
         <div class="px-6 py-4 flex justify-between items-center max-w-2xl mx-auto">
             <div class="flex items-center gap-2">
-                <i class="fa-solid fa-layer-group text-blue-400"></i>
+                <!-- Swapped Icon for PNG -->
+                <img src="icon-192.png" alt="BidBase Logo" class="w-7 h-7 object-contain">
                 <h1 class="text-xl font-bold tracking-tight">BidBase</h1>
             </div>
             <button onclick="openResetModal()" class="text-xs font-medium text-slate-400 hover:text-white uppercase tracking-wider px-2 py-1 rounded border border-transparent hover:border-slate-600 transition">Reset</button>
@@ -109,47 +56,38 @@
         <section class="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
             <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4"><i class="fa-solid fa-sliders mr-2"></i>Project Settings</h2>
             
-            <!-- Periods -->
             <div class="mb-5">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Duration Structure</label>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-xs text-slate-400 mb-1 block">Base Periods</label>
-                        <input type="number" id="baseCount" value="1" min="1" oninput="renderDurationFields()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-center font-bold">
+                        <input type="number" id="baseCount" value="1" min="1" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-center font-bold">
                     </div>
                     <div>
                         <label class="text-xs text-slate-400 mb-1 block">Option Periods</label>
-                        <input type="number" id="optCount" value="0" min="0" oninput="renderDurationFields()" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-center font-bold">
+                        <input type="number" id="optCount" value="0" min="0" class="w-full bg-slate-50 border border-slate-200 text-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all text-center font-bold">
                     </div>
                 </div>
             </div>
 
-            <!-- Unit Types -->
             <div class="mb-5">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Quotation Unit</label>
                 <div class="grid grid-cols-3 gap-3">
                     <label class="cursor-pointer">
                         <input type="radio" name="unitType" id="unitHour" value="hour" class="peer sr-only">
-                        <div class="text-center p-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition-all text-sm font-medium">
-                            Per Hour
-                        </div>
+                        <div class="text-center p-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition-all text-sm font-medium">Per Hour</div>
                     </label>
                     <label class="cursor-pointer">
                         <input type="radio" name="unitType" id="unitPax" value="pax" class="peer sr-only">
-                        <div class="text-center p-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition-all text-sm font-medium">
-                            Per Pax
-                        </div>
+                        <div class="text-center p-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition-all text-sm font-medium">Per Pax</div>
                     </label>
                     <label class="cursor-pointer">
                         <input type="radio" name="unitType" id="unitPkg" value="package" class="peer sr-only" checked>
-                        <div class="text-center p-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition-all text-sm font-medium">
-                            Package
-                        </div>
+                        <div class="text-center p-2 rounded-lg border border-slate-200 bg-white text-slate-500 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition-all text-sm font-medium">Package</div>
                     </label>
                 </div>
             </div>
 
-            <!-- GST Toggle -->
             <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-100">
                 <span class="text-sm font-medium text-slate-700">Apply 9% GST</span>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -159,12 +97,10 @@
             </div>
         </section>
 
-        <!-- SECTION 2: Duration & Volume (Always Visible) -->
+        <!-- SECTION 2: Duration & Volume -->
         <section id="durationSection" class="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 fade-in">
             <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4"><i class="fa-solid fa-clock mr-2"></i>Volume & Duration</h2>
-            <div id="durationInputs" class="space-y-4">
-                <!-- Injected via JS -->
-            </div>
+            <div id="durationInputs" class="space-y-4"></div>
         </section>
 
         <!-- SECTION 3: Manpower -->
@@ -181,9 +117,7 @@
                 <div class="col-span-1"></div>
             </div>
 
-            <div id="manpowerContainer" class="space-y-2">
-                <!-- Populated by JS on load -->
-            </div>
+            <div id="manpowerContainer" class="space-y-2"></div>
         </section>
 
         <!-- SECTION 4: Materials -->
@@ -200,47 +134,35 @@
                 <div class="col-span-1"></div>
             </div>
 
-            <div id="materialContainer" class="space-y-2">
-                <!-- Initial Rows (5 as requested) -->
-            </div>
+            <div id="materialContainer" class="space-y-2"></div>
         </section>
         
-        <!-- Spacer for footer -->
         <div class="h-10"></div>
-
     </main>
 
     <!-- Sticky Footer -->
     <footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] safe-bottom z-40">
         <div class="max-w-2xl mx-auto p-4">
             <button onclick="calculate()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl shadow-lg transform transition active:scale-[0.98] flex items-center justify-center gap-2">
-                <span>Calculate Proposal</span>
-                <i class="fa-solid fa-calculator text-blue-400"></i>
+                <span>Calculate Cost</span>
             </button>
         </div>
     </footer>
 
     <!-- Results Modal -->
     <div id="resultsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <!-- Added ID to the Card for Capture -->
         <div id="proposalCard" class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] flex-shrink-0">
-            
-            <!-- Modal Header -->
             <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
                 <div>
-                    <h3 class="font-bold text-lg text-slate-800">Proposal Summary</h3>
+                    <h3 class="font-bold text-lg text-slate-800">Costing Breakdown</h3>
                     <p class="text-xs text-slate-500">Based on 30-30-30-10 Split</p>
                 </div>
-                <!-- Close Button (will be hidden in Screenshot) -->
                 <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-2 export-hide">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
 
-            <!-- Modal Body (Scrollable) -->
             <div class="p-6 overflow-y-auto space-y-6">
-                
-                <!-- Main Numbers -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 col-span-2">
                         <div class="text-blue-600 text-xs font-bold uppercase tracking-wider mb-1">Total Contract Value</div>
@@ -249,15 +171,11 @@
                     </div>
                 </div>
 
-                <!-- Unit Details -->
                 <div id="unitBreakdownContainer">
                     <h4 class="text-sm font-bold text-slate-900 mb-3 border-b pb-2">Quotations</h4>
-                    <div id="unitBreakdownContent" class="space-y-4 text-sm">
-                        <!-- Dynamic Content -->
-                    </div>
+                    <div id="unitBreakdownContent" class="space-y-4 text-sm"></div>
                 </div>
 
-                <!-- Breakdown -->
                 <div>
                     <h4 class="text-sm font-bold text-slate-900 mb-3 border-b pb-2">Internal Cost Breakdown</h4>
                     <div class="space-y-3 text-sm">
@@ -265,28 +183,20 @@
                             <span class="text-slate-500">Project Cost (30%)</span>
                             <span class="font-medium text-slate-800" id="resProjectCost">$0.00</span>
                         </div>
-                        
                         <div class="pl-4 text-xs text-slate-400 border-l-2 border-slate-100 mt-2 space-y-2">
-                            <!-- Manpower Sub-Breakdown -->
                             <div>
                                 <div class="flex justify-between font-medium text-slate-600 mb-1">
                                     <span>Manpower Total</span>
                                     <span id="resManpower">$0.00</span>
                                 </div>
-                                <div id="manpowerDetailsList" class="space-y-1 pl-2 border-l border-blue-100 text-[11px] text-slate-500 bg-slate-50 p-2 rounded">
-                                    <!-- Injected by JS -->
-                                </div>
+                                <div id="manpowerDetailsList" class="space-y-1 pl-2 border-l border-blue-100 text-[11px] text-slate-500 bg-slate-50 p-2 rounded"></div>
                             </div>
-                            
-                            <!-- Materials Sub-Breakdown -->
                             <div>
                                 <div class="flex justify-between font-medium text-slate-600 mb-1 pt-2 border-t border-dashed border-slate-200">
                                     <span>Materials Total</span>
                                     <span id="resMaterial">$0.00</span>
                                 </div>
-                                <div id="materialDetailsList" class="space-y-1 pl-2 border-l border-blue-100 text-[11px] text-slate-500 bg-slate-50 p-2 rounded">
-                                    <!-- Injected by JS -->
-                                </div>
+                                <div id="materialDetailsList" class="space-y-1 pl-2 border-l border-blue-100 text-[11px] text-slate-500 bg-slate-50 p-2 rounded"></div>
                             </div>
                         </div>
 
@@ -304,14 +214,10 @@
                         </div>
                     </div>
                 </div>
-
             </div>
             
-            <!-- Modal Footer -->
             <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl safe-bottom flex gap-3 export-hide">
-                <button onclick="closeModal()" class="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition">
-                    Close
-                </button>
+                <button onclick="closeModal()" class="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition">Close</button>
                 <button onclick="takeScreenshot()" class="flex-1 bg-blue-600 border border-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-camera"></i>
                     <span>Save Image</span>
@@ -332,514 +238,14 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- Register Service Worker -->
     <script>
-        // Init
-        document.addEventListener('DOMContentLoaded', () => {
-            renderDurationFields();
-            addManpowerRow();
-            initMaterials(5);
-        });
-
-        function initMaterials(count) {
-            const container = document.getElementById('materialContainer');
-            for(let i=0; i<count; i++) {
-                addMaterialRow();
-            }
-        }
-
-        // --- SCREENSHOT GENERATION LOGIC ---
-        function takeScreenshot() {
-            // 1. Get the source element
-            const element = document.getElementById('proposalCard');
-            
-            // 2. Clone it to manipulate styles for capture without affecting UI
-            const clone = element.cloneNode(true);
-            
-            // 3. Clean up UI elements (hide buttons marked with export-hide)
-            const hiddenElements = clone.querySelectorAll('.export-hide');
-            hiddenElements.forEach(el => el.remove());
-
-            // 4. Wrap clone in a container to control rendering context
-            const container = document.createElement('div');
-            
-            // Place container behind the modal but at top-left
-            container.style.position = 'absolute';
-            container.style.top = '0'; 
-            container.style.left = '0';
-            container.style.zIndex = '-50'; // Behind the modal (which is z-100)
-            
-            // Style the clone for the Screenshot
-            // Force a standard width (e.g. 800px) so it looks good on mobile or desktop
-            clone.style.width = '800px'; 
-            clone.style.maxWidth = 'none';
-            // Allow height to expand fully to show all content
-            clone.style.height = 'auto';
-            clone.style.maxHeight = 'none';
-            clone.style.overflow = 'visible';
-            clone.style.backgroundColor = '#ffffff';
-            clone.style.margin = '0';
-            clone.style.padding = '40px'; // Add padding for the "Document" look
-            clone.style.borderRadius = '0'; // Square edges look cleaner in full image
-            clone.style.boxShadow = 'none';
-            
-            container.appendChild(clone);
-            document.body.appendChild(container);
-
-            // 5. Generate Screenshot
-            html2canvas(clone, {
-                scale: 2, // 2x scale for Retina/High quality
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                scrollY: 0 // Start from top
-            }).then(canvas => {
-                // Create download link
-                const link = document.createElement('a');
-                link.download = 'BidBase_Proposal_Summary.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                
-                // Cleanup
-                document.body.removeChild(container);
-            }).catch(err => {
-                console.error("Screenshot failed:", err);
-                alert("Could not generate screenshot.");
-                document.body.removeChild(container);
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
             });
-        }
-
-        // --- RESET LOGIC ---
-        function openResetModal() {
-            document.getElementById('resetModal').classList.remove('hidden');
-        }
-
-        function closeResetModal() {
-            document.getElementById('resetModal').classList.add('hidden');
-        }
-
-        function executeReset() {
-            // 1. Reset Configuration Inputs
-            document.getElementById('baseCount').value = "1";
-            document.getElementById('optCount').value = "0";
-            
-            // Reset Radio Button
-            const unitPkg = document.getElementById('unitPkg');
-            if (unitPkg) unitPkg.checked = true;
-            
-            document.getElementById('gstToggle').checked = false;
-
-            // 2. Reset Duration Section (Re-render clears the inputs)
-            renderDurationFields();
-
-            // 3. Reset Manpower Section
-            const manpowerContainer = document.getElementById('manpowerContainer');
-            manpowerContainer.innerHTML = '';
-            addManpowerRow(); // Add back single default row
-
-            // 4. Reset Materials Section
-            const materialContainer = document.getElementById('materialContainer');
-            materialContainer.innerHTML = '';
-            initMaterials(5); // Add back default 5 rows
-
-            // 5. Clear Errors & Modals
-            hideError();
-            closeModal();
-            closeResetModal();
-
-            // 6. Scroll to top
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        // --- Error Handling ---
-        function showError(msg) {
-            const banner = document.getElementById('errorBanner');
-            const msgEl = document.getElementById('errorMessage');
-            msgEl.innerText = msg;
-            banner.classList.remove('-translate-y-full');
-            // Auto hide after 5 seconds
-            setTimeout(hideError, 5000);
-        }
-
-        function hideError() {
-            document.getElementById('errorBanner').classList.add('-translate-y-full');
-        }
-
-        // --- Render Logic for Periods ---
-
-        function renderDurationFields() {
-            // Get Config
-            const baseCount = parseInt(document.getElementById('baseCount').value) || 1;
-            const optCount = parseInt(document.getElementById('optCount').value) || 0;
-            
-            const container = document.getElementById('durationInputs');
-            
-            let html = '';
-            
-            // Generate Periods Array
-            let periods = [];
-            for(let i=1; i<=baseCount; i++) periods.push({id: `base${i}`, label: `Base Period ${i}`});
-            for(let i=1; i<=optCount; i++) periods.push({id: `opt${i}`, label: `Option Period ${i}`});
-
-            periods.forEach(p => {
-                html += `
-                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 fade-in">
-                    <div class="text-xs font-bold text-slate-500 uppercase mb-2">${p.label}</div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Total Hours</label>
-                            <input type="number" inputmode="decimal" id="hrs_${p.id}" class="w-full bg-white border border-slate-200 rounded p-2 focus:ring-1 focus:ring-blue-500 outline-none hours-input" placeholder="0">
-                        </div>
-                        <div>
-                            <label class="block text-xs text-slate-400 mb-1">Participants</label>
-                            <input type="number" inputmode="decimal" id="pax_${p.id}" class="w-full bg-white border border-slate-200 rounded p-2 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="0">
-                        </div>
-                    </div>
-                </div>`;
-            });
-
-            container.innerHTML = html;
-        }
-
-        // --- Row Management ---
-
-        function addManpowerRow() {
-            const container = document.getElementById('manpowerContainer');
-            const div = document.createElement('div');
-            div.className = 'grid grid-cols-12 gap-2 items-center manpower-row fade-in';
-            div.innerHTML = `
-                <div class="col-span-5 role-wrapper">
-                    <select onchange="handleRoleSelect(this)" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none text-slate-700 m-role-select">
-                        <option value="Main Instructor">Main Instructor</option>
-                        <option value="Assistant Instructor">Assistant Instructor</option>
-                        <option value="Others">Others...</option>
-                    </select>
-                </div>
-                <div class="col-span-2">
-                    <input type="number" inputmode="decimal" placeholder="1" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:outline-none m-qty" value="1">
-                </div>
-                <div class="col-span-4">
-                    <input type="number" inputmode="decimal" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-right focus:ring-1 focus:ring-blue-500 focus:outline-none m-rate">
-                </div>
-                <div class="col-span-1 text-center">
-                    <button onclick="removeRow(this)" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button>
-                </div>
-            `;
-            container.appendChild(div);
-        }
-
-        function handleRoleSelect(selectElem) {
-            if(selectElem.value === 'Others') {
-                const wrapper = selectElem.parentElement;
-                wrapper.innerHTML = `
-                    <input type="text" placeholder="Specify Role" class="w-full bg-white border border-blue-300 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none shadow-sm m-role-input" autoFocus>
-                `;
-                wrapper.querySelector('input').focus();
-            }
-        }
-
-        function addMaterialRow() {
-            const container = document.getElementById('materialContainer');
-            const div = document.createElement('div');
-            div.className = 'grid grid-cols-12 gap-2 items-center material-row fade-in';
-            div.innerHTML = `
-                <div class="col-span-5">
-                    <input type="text" placeholder="Item Name" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" onkeydown="handleEnter(event, this)">
-                </div>
-                <div class="col-span-2">
-                    <input type="number" inputmode="decimal" placeholder="1" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:outline-none mat-qty" value="1">
-                </div>
-                <div class="col-span-4">
-                    <input type="number" inputmode="decimal" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-right focus:ring-1 focus:ring-blue-500 focus:outline-none mat-cost">
-                </div>
-                <div class="col-span-1 text-center">
-                    <button onclick="removeRow(this)" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash-can"></i></button>
-                </div>
-            `;
-            container.appendChild(div);
-        }
-
-        function removeRow(btn) {
-            btn.parentElement.parentElement.remove();
-        }
-
-        function handleEnter(e, input) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const row = input.parentElement.parentElement;
-                const costInput = row.querySelector('.mat-cost');
-                costInput.focus();
-            }
-        }
-        
-        document.addEventListener('keydown', function(e) {
-            if (e.target.classList.contains('mat-cost') && e.key === 'Enter') {
-                addMaterialRow();
-                setTimeout(() => {
-                    const rows = document.querySelectorAll('.material-row');
-                    const lastRow = rows[rows.length-1];
-                    lastRow.querySelector('input[type=text]').focus();
-                }, 50);
-            }
-        });
-
-        // --- Calculation Logic ---
-
-        function calculate() {
-            hideError(); // clear prev errors
-
-            // 1. Get Config
-            const baseCount = parseInt(document.getElementById('baseCount').value) || 1;
-            const optCount = parseInt(document.getElementById('optCount').value) || 0;
-            const unitType = document.querySelector('input[name="unitType"]:checked').value;
-            const useGst = document.getElementById('gstToggle').checked;
-
-            // 2. Define Periods
-            let periods = [];
-            for(let i=1; i<=baseCount; i++) periods.push(`base${i}`);
-            for(let i=1; i<=optCount; i++) periods.push(`opt${i}`);
-
-            // --- VALIDATION STEP ---
-            // Check Manpower
-            let manpowerHourlyRate = 0;
-            let manpowerDetails = [];
-            let validManpowerFound = false;
-
-            document.querySelectorAll('.manpower-row').forEach(row => {
-                const qtyInput = row.querySelector('.m-qty');
-                const rateInput = row.querySelector('.m-rate');
-                
-                // Role might be select or input
-                let roleName = "Unknown Role";
-                const roleSelect = row.querySelector('.m-role-select');
-                const roleInput = row.querySelector('.m-role-input');
-                
-                if (roleSelect) roleName = roleSelect.value;
-                if (roleInput) roleName = roleInput.value;
-                if (roleName === 'Others') roleName = "Other Role"; // fallback
-
-                const qty = parseFloat(qtyInput.value) || 0;
-                const rate = parseFloat(rateInput.value) || 0;
-                
-                if (qty > 0 && rate > 0) {
-                    validManpowerFound = true;
-                    manpowerHourlyRate += (qty * rate);
-                    manpowerDetails.push({
-                        role: roleName,
-                        qty: qty,
-                        rate: rate,
-                        totalRate: qty * rate
-                    });
-                }
-            });
-
-            if (!validManpowerFound) {
-                showError("Please enter at least one instructor with a valid Quantity and Hourly Rate.");
-                return;
-            }
-
-            // Check Duration (Hours)
-            let totalHoursRecorded = 0;
-            let missingHours = false;
-            
-            periods.forEach(p => {
-                const hEl = document.getElementById(`hrs_${p}`);
-                const hours = hEl ? (parseFloat(hEl.value) || 0) : 0;
-                totalHoursRecorded += hours;
-                if(hours === 0) missingHours = true;
-            });
-
-            if (totalHoursRecorded === 0) {
-                showError("Please enter Total Hours for at least one period to calculate costs.");
-                return;
-            }
-
-            // 4. Gather Material Costs
-            let materialBaseCost = 0;
-            let materialDetails = [];
-
-            document.querySelectorAll('.material-row').forEach(row => {
-                const qtyInput = row.querySelector('.mat-qty');
-                const costInput = row.querySelector('.mat-cost');
-                const nameInput = row.querySelector('input[type="text"]');
-                
-                const qty = parseFloat(qtyInput.value) || 0;
-                const cost = parseFloat(costInput.value) || 0;
-                
-                if (qty > 0 && cost > 0) {
-                    const lineTotal = qty * cost;
-                    materialBaseCost += lineTotal;
-                    materialDetails.push({
-                        name: nameInput.value || "Item",
-                        qty: qty,
-                        unitCost: cost,
-                        total: lineTotal
-                    });
-                }
-            });
-
-            // 5. Calculate Project Cost Per Period
-            let totalProjectCost = 0;
-            let periodResults = {};
-
-            periods.forEach(p => {
-                const hEl = document.getElementById(`hrs_${p}`);
-                const hours = hEl ? (parseFloat(hEl.value) || 0) : 0;
-                
-                const pEl = document.getElementById(`pax_${p}`);
-                const pax = pEl ? (parseFloat(pEl.value) || 0) : 0;
-
-                const pManpower = manpowerHourlyRate * hours;
-                const pMaterial = materialBaseCost; 
-                const pProjectCost = pManpower + pMaterial;
-
-                const pTotalBase = pProjectCost > 0 ? (pProjectCost / 0.30) : 0;
-                
-                totalProjectCost += pProjectCost;
-
-                periodResults[p] = {
-                    projectCost: pProjectCost,
-                    totalBase: pTotalBase,
-                    hours: hours,
-                    pax: pax,
-                    manpowerCost: pManpower,
-                    materialCost: pMaterial
-                };
-            });
-
-            // 6. Aggregates
-            const grandProjectCost = Object.values(periodResults).reduce((acc, curr) => acc + curr.projectCost, 0);
-            const grandTotalBase = grandProjectCost > 0 ? (grandProjectCost / 0.30) : 0;
-            
-            const enterprise = grandTotalBase * 0.30;
-            const innovation = grandTotalBase * 0.30;
-            const profit = grandTotalBase * 0.10;
-
-            const gstAmt = useGst ? (grandTotalBase * 0.09) : 0;
-            const finalTotal = grandTotalBase + gstAmt;
-
-            // 7. Render Internal Breakdown
-            document.getElementById('resTotalValue').innerText = formatCurrency(finalTotal);
-            document.getElementById('resGstNote').innerText = useGst ? '(Includes 9% GST)' : '(No GST Applied)';
-            document.getElementById('resProjectCost').innerText = formatCurrency(grandProjectCost);
-            
-            let totalManpower = Object.values(periodResults).reduce((acc, curr) => acc + curr.manpowerCost, 0);
-            let totalMaterial = Object.values(periodResults).reduce((acc, curr) => acc + curr.materialCost, 0);
-            
-            document.getElementById('resManpower').innerText = formatCurrency(totalManpower);
-            document.getElementById('resMaterial').innerText = formatCurrency(totalMaterial);
-            
-            // --- MANPOWER SUB-BREAKDOWN RENDER ---
-            const manpowerListEl = document.getElementById('manpowerDetailsList');
-            manpowerListEl.innerHTML = '';
-            if (manpowerDetails.length > 0) {
-                manpowerDetails.forEach(d => {
-                    const roleTotalCost = d.totalRate * totalHoursRecorded;
-                    manpowerListEl.innerHTML += `
-                        <div class="flex justify-between items-center">
-                            <span>${d.qty}x ${d.role} <span class="text-slate-400">@ ${formatCurrency(d.rate)}/hr</span></span>
-                            <span>${formatCurrency(roleTotalCost)}</span>
-                        </div>
-                    `;
-                });
-                manpowerListEl.innerHTML += `
-                    <div class="text-[10px] text-right text-slate-400 mt-1 border-t border-slate-200 pt-1">
-                        Total Hours: ${totalHoursRecorded} hrs
-                    </div>
-                `;
-            } else {
-                manpowerListEl.innerHTML = '<div class="italic text-slate-400">No manpower data</div>';
-            }
-
-            // --- MATERIAL SUB-BREAKDOWN RENDER ---
-            const materialListEl = document.getElementById('materialDetailsList');
-            materialListEl.innerHTML = '';
-            if (materialDetails.length > 0) {
-                const periodCount = periods.length;
-                materialDetails.forEach(d => {
-                    // Cost for one period
-                    const itemPerPeriod = d.total;
-                    // Cost across all periods
-                    const itemTotal = itemPerPeriod * periodCount;
-                    
-                    materialListEl.innerHTML += `
-                        <div class="flex justify-between items-center">
-                            <span>${d.qty}x ${d.name} <span class="text-slate-400">@ ${formatCurrency(d.unitCost)}</span></span>
-                            <span>${formatCurrency(itemTotal)}</span>
-                        </div>
-                    `;
-                });
-                materialListEl.innerHTML += `
-                    <div class="text-[10px] text-right text-slate-400 mt-1 border-t border-slate-200 pt-1">
-                        Applied across ${periodCount} period(s)
-                    </div>
-                `;
-            } else {
-                materialListEl.innerHTML = '<div class="italic text-slate-400">No material data</div>';
-            }
-            // -------------------------------------
-
-            document.getElementById('resEnterprise').innerText = formatCurrency(enterprise);
-            document.getElementById('resInnovation').innerText = formatCurrency(innovation);
-            document.getElementById('resProfit').innerText = formatCurrency(profit);
-
-            // 8. Render Quotations (Unit Breakdown)
-            const breakdownContent = document.getElementById('unitBreakdownContent');
-            breakdownContent.innerHTML = '';
-            
-            periods.forEach(p => {
-                const data = periodResults[p];
-                const periodTotalWithGst = data.totalBase + (useGst ? (data.totalBase * 0.09) : 0);
-                
-                let periodLabel = p.startsWith('base') 
-                    ? `Base Period ${p.replace('base','')}` 
-                    : `Option Period ${p.replace('opt','')}`;
-                
-                let html = `<div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-bold text-slate-700 text-xs uppercase">${periodLabel}</span>
-                        <span class="text-xs text-slate-500 font-medium">Total: ${formatCurrency(periodTotalWithGst)}</span>
-                    </div>
-                    <div class="bg-white border border-slate-200 rounded p-2 text-sm space-y-1">`;
-                
-                if (unitType === 'hour') {
-                    if (data.hours > 0) {
-                        const rate = periodTotalWithGst / data.hours;
-                        html += `<div class="flex justify-between font-bold text-blue-700"><span>Price Per Hour</span> <span>${formatCurrency(rate)}</span></div>`;
-                        html += `<div class="text-[10px] text-slate-400 text-right">based on ${data.hours} hours</div>`;
-                    } else {
-                        html += `<div class="text-xs text-red-400 italic">Enter hours to calculate rate</div>`;
-                    }
-                } else if (unitType === 'pax') {
-                    if (data.pax > 0) {
-                        const rate = periodTotalWithGst / data.pax;
-                        html += `<div class="flex justify-between font-bold text-blue-700"><span>Price Per Pax</span> <span>${formatCurrency(rate)}</span></div>`;
-                        html += `<div class="text-[10px] text-slate-400 text-right">based on ${data.pax} pax</div>`;
-                    } else {
-                        html += `<div class="text-xs text-red-400 italic">Enter pax to calculate rate</div>`;
-                    }
-                } else {
-                    html += `<div class="flex justify-between font-bold text-blue-700"><span>Lump Sum Package</span> <span>${formatCurrency(periodTotalWithGst)}</span></div>`;
-                }
-
-                html += `</div></div>`;
-                breakdownContent.innerHTML += html;
-            });
-
-            openModal();
-        }
-
-        function openModal() {
-            document.body.classList.add('modal-open');
-            document.getElementById('resultsModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.body.classList.remove('modal-open');
-            document.getElementById('resultsModal').classList.add('hidden');
-        }
-
-        function formatCurrency(num) {
-            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
         }
     </script>
 </body>
