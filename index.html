@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>BidBase</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Screenshot Generation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -220,7 +222,8 @@
 
     <!-- Results Modal -->
     <div id="resultsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] flex-shrink-0">
+        <!-- Added ID to the Card for Capture -->
+        <div id="proposalCard" class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] flex-shrink-0">
             
             <!-- Modal Header -->
             <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
@@ -228,7 +231,8 @@
                     <h3 class="font-bold text-lg text-slate-800">Proposal Summary</h3>
                     <p class="text-xs text-slate-500">Based on 30-30-30-10 Split</p>
                 </div>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-2">
+                <!-- Close Button (will be hidden in Screenshot) -->
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-2 export-hide">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
@@ -304,9 +308,13 @@
             </div>
             
             <!-- Modal Footer -->
-            <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl safe-bottom">
-                <button onclick="closeModal()" class="w-full bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition">
+            <div class="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl safe-bottom flex gap-3 export-hide">
+                <button onclick="closeModal()" class="flex-1 bg-white border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition">
                     Close
+                </button>
+                <button onclick="takeScreenshot()" class="flex-1 bg-blue-600 border border-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Save Image</span>
                 </button>
             </div>
         </div>
@@ -338,6 +346,66 @@
             for(let i=0; i<count; i++) {
                 addMaterialRow();
             }
+        }
+
+        // --- SCREENSHOT GENERATION LOGIC ---
+        function takeScreenshot() {
+            // 1. Get the source element
+            const element = document.getElementById('proposalCard');
+            
+            // 2. Clone it to manipulate styles for capture without affecting UI
+            const clone = element.cloneNode(true);
+            
+            // 3. Clean up UI elements (hide buttons marked with export-hide)
+            const hiddenElements = clone.querySelectorAll('.export-hide');
+            hiddenElements.forEach(el => el.remove());
+
+            // 4. Wrap clone in a container to control rendering context
+            const container = document.createElement('div');
+            
+            // Place container behind the modal but at top-left
+            container.style.position = 'absolute';
+            container.style.top = '0'; 
+            container.style.left = '0';
+            container.style.zIndex = '-50'; // Behind the modal (which is z-100)
+            
+            // Style the clone for the Screenshot
+            // Force a standard width (e.g. 800px) so it looks good on mobile or desktop
+            clone.style.width = '800px'; 
+            clone.style.maxWidth = 'none';
+            // Allow height to expand fully to show all content
+            clone.style.height = 'auto';
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'visible';
+            clone.style.backgroundColor = '#ffffff';
+            clone.style.margin = '0';
+            clone.style.padding = '40px'; // Add padding for the "Document" look
+            clone.style.borderRadius = '0'; // Square edges look cleaner in full image
+            clone.style.boxShadow = 'none';
+            
+            container.appendChild(clone);
+            document.body.appendChild(container);
+
+            // 5. Generate Screenshot
+            html2canvas(clone, {
+                scale: 2, // 2x scale for Retina/High quality
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                scrollY: 0 // Start from top
+            }).then(canvas => {
+                // Create download link
+                const link = document.createElement('a');
+                link.download = 'BidBase_Proposal_Summary.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // Cleanup
+                document.body.removeChild(container);
+            }).catch(err => {
+                console.error("Screenshot failed:", err);
+                alert("Could not generate screenshot.");
+                document.body.removeChild(container);
+            });
         }
 
         // --- RESET LOGIC ---
@@ -686,13 +754,7 @@
             const materialListEl = document.getElementById('materialDetailsList');
             materialListEl.innerHTML = '';
             if (materialDetails.length > 0) {
-                // We show the cost PER PERIOD (since materialBaseCost is added to every period in the loop)
-                // Wait, logic check: in loop, pMaterial = materialBaseCost.
-                // So Total Material Cost = materialBaseCost * number of periods.
-                // Let's reflect that.
-                
                 const periodCount = periods.length;
-                
                 materialDetails.forEach(d => {
                     // Cost for one period
                     const itemPerPeriod = d.total;
