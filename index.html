@@ -192,8 +192,9 @@
             </div>
 
             <div class="text-xs text-slate-400 mb-2 grid grid-cols-12 gap-2 px-1">
-                <div class="col-span-7">Item Name</div>
-                <div class="col-span-4 text-right">Total Cost ($)</div>
+                <div class="col-span-5">Item Name</div>
+                <div class="col-span-2 text-center">Qty</div>
+                <div class="col-span-4 text-right">Unit Cost ($)</div>
                 <div class="col-span-1"></div>
             </div>
 
@@ -268,15 +269,20 @@
                                     <span>Manpower Total</span>
                                     <span id="resManpower">$0.00</span>
                                 </div>
-                                <!-- Collapsible list of roles -->
                                 <div id="manpowerDetailsList" class="space-y-1 pl-2 border-l border-blue-100 text-[11px] text-slate-500 bg-slate-50 p-2 rounded">
                                     <!-- Injected by JS -->
                                 </div>
                             </div>
                             
-                            <div class="flex justify-between font-medium text-slate-600 pt-1 border-t border-dashed border-slate-200">
-                                <span>Materials Total</span>
-                                <span id="resMaterial">$0.00</span>
+                            <!-- Materials Sub-Breakdown -->
+                            <div>
+                                <div class="flex justify-between font-medium text-slate-600 mb-1 pt-2 border-t border-dashed border-slate-200">
+                                    <span>Materials Total</span>
+                                    <span id="resMaterial">$0.00</span>
+                                </div>
+                                <div id="materialDetailsList" class="space-y-1 pl-2 border-l border-blue-100 text-[11px] text-slate-500 bg-slate-50 p-2 rounded">
+                                    <!-- Injected by JS -->
+                                </div>
                             </div>
                         </div>
 
@@ -468,8 +474,11 @@
             const div = document.createElement('div');
             div.className = 'grid grid-cols-12 gap-2 items-center material-row fade-in';
             div.innerHTML = `
-                <div class="col-span-7">
+                <div class="col-span-5">
                     <input type="text" placeholder="Item Name" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none" onkeydown="handleEnter(event, this)">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" inputmode="decimal" placeholder="1" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-center focus:ring-1 focus:ring-blue-500 focus:outline-none mat-qty" value="1">
                 </div>
                 <div class="col-span-4">
                     <input type="number" inputmode="decimal" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm text-right focus:ring-1 focus:ring-blue-500 focus:outline-none mat-cost">
@@ -575,14 +584,29 @@
                 showError("Please enter Total Hours for at least one period to calculate costs.");
                 return;
             }
-            // Optional: warn if some periods have 0 hours? 
-            // For now, as long as total > 0, we proceed, as some options might be 0 hours (unlikely but possible).
 
             // 4. Gather Material Costs
             let materialBaseCost = 0;
+            let materialDetails = [];
+
             document.querySelectorAll('.material-row').forEach(row => {
-                const cost = parseFloat(row.querySelector('.mat-cost').value) || 0;
-                materialBaseCost += cost;
+                const qtyInput = row.querySelector('.mat-qty');
+                const costInput = row.querySelector('.mat-cost');
+                const nameInput = row.querySelector('input[type="text"]');
+                
+                const qty = parseFloat(qtyInput.value) || 0;
+                const cost = parseFloat(costInput.value) || 0;
+                
+                if (qty > 0 && cost > 0) {
+                    const lineTotal = qty * cost;
+                    materialBaseCost += lineTotal;
+                    materialDetails.push({
+                        name: nameInput.value || "Item",
+                        qty: qty,
+                        unitCost: cost,
+                        total: lineTotal
+                    });
+                }
             });
 
             // 5. Calculate Project Cost Per Period
@@ -640,16 +664,8 @@
             const manpowerListEl = document.getElementById('manpowerDetailsList');
             manpowerListEl.innerHTML = '';
             if (manpowerDetails.length > 0) {
-                // Calculate average multiplier (Total Hours) to show context?
-                // Actually, just show the Hourly Rate structure since that's what drives it.
-                // Or show the Total Cost contribution.
-                // Let's show: Role (Qty x Rate) -> Total Cost contribution
-                
                 manpowerDetails.forEach(d => {
-                    // Total cost for this role across ALL periods
-                    // = d.totalRate (hourly) * totalHoursRecorded
                     const roleTotalCost = d.totalRate * totalHoursRecorded;
-                    
                     manpowerListEl.innerHTML += `
                         <div class="flex justify-between items-center">
                             <span>${d.qty}x ${d.role} <span class="text-slate-400">@ ${formatCurrency(d.rate)}/hr</span></span>
@@ -664,6 +680,39 @@
                 `;
             } else {
                 manpowerListEl.innerHTML = '<div class="italic text-slate-400">No manpower data</div>';
+            }
+
+            // --- MATERIAL SUB-BREAKDOWN RENDER ---
+            const materialListEl = document.getElementById('materialDetailsList');
+            materialListEl.innerHTML = '';
+            if (materialDetails.length > 0) {
+                // We show the cost PER PERIOD (since materialBaseCost is added to every period in the loop)
+                // Wait, logic check: in loop, pMaterial = materialBaseCost.
+                // So Total Material Cost = materialBaseCost * number of periods.
+                // Let's reflect that.
+                
+                const periodCount = periods.length;
+                
+                materialDetails.forEach(d => {
+                    // Cost for one period
+                    const itemPerPeriod = d.total;
+                    // Cost across all periods
+                    const itemTotal = itemPerPeriod * periodCount;
+                    
+                    materialListEl.innerHTML += `
+                        <div class="flex justify-between items-center">
+                            <span>${d.qty}x ${d.name} <span class="text-slate-400">@ ${formatCurrency(d.unitCost)}</span></span>
+                            <span>${formatCurrency(itemTotal)}</span>
+                        </div>
+                    `;
+                });
+                materialListEl.innerHTML += `
+                    <div class="text-[10px] text-right text-slate-400 mt-1 border-t border-slate-200 pt-1">
+                        Applied across ${periodCount} period(s)
+                    </div>
+                `;
+            } else {
+                materialListEl.innerHTML = '<div class="italic text-slate-400">No material data</div>';
             }
             // -------------------------------------
 
