@@ -83,7 +83,7 @@ function executeReset() {
     
     document.getElementById('gstToggle').checked = false;
 
-    // FIX: Force clear the container first so renderDurationFields doesn't preserve old values
+    // FIX: Force clear the container first
     document.getElementById('durationInputs').innerHTML = '';
     
     renderDurationFields();
@@ -130,7 +130,6 @@ function renderDurationFields() {
     for(let i=1; i<=optCount; i++) periods.push({id: `opt${i}`, label: `Option Period ${i}`});
 
     periods.forEach(p => {
-        // Feature: Preserve values if they exist in the DOM (unless we just cleared it in reset)
         const existingHr = document.getElementById(`hrs_${p.id}`)?.value || '';
         const existingPax = document.getElementById(`pax_${p.id}`)?.value || '';
 
@@ -243,11 +242,40 @@ function calculate() {
     const unitType = document.querySelector('input[name="unitType"]:checked').value;
     const useGst = document.getElementById('gstToggle').checked;
 
+    // 1. Identify all periods
     let periods = [];
     for(let i=1; i<=baseCount; i++) periods.push(`base${i}`);
     for(let i=1; i<=optCount; i++) periods.push(`opt${i}`);
 
-    let manpowerHourlyRate = 0;
+    // 2. Aggregate Duration Data (Hours & Pax) across ALL periods
+    let totalProjectHours = 0;
+    let totalProjectPax = 0; // Not used for calculation, but for verification
+    let periodData = {}; // Store individual period data for later breakdown
+
+    let missingHours = false;
+
+    periods.forEach(p => {
+        const hEl = document.getElementById(`hrs_${p}`);
+        const pEl = document.getElementById(`pax_${p}`);
+        
+        const hours = hEl ? (parseFloat(hEl.value) || 0) : 0;
+        const pax = pEl ? (parseFloat(pEl.value) || 0) : 0;
+
+        if (hours === 0) missingHours = true;
+
+        totalProjectHours += hours;
+        totalProjectPax += pax;
+
+        periodData[p] = { hours, pax };
+    });
+
+    if (totalProjectHours === 0) {
+        showError("Please enter Total Hours for at least one period to calculate costs.");
+        return;
+    }
+
+    // 3. Calculate Manpower INTERNAL Cost (Base Rate * Total Hours)
+    let manpowerHourlyBase = 0;
     let manpowerDetails = [];
     let validManpowerFound = false;
 
@@ -268,11 +296,12 @@ function calculate() {
         
         if (qty > 0 && rate > 0) {
             validManpowerFound = true;
-            manpowerHourlyRate += (qty * rate);
+            // Internal Cost/Hr for this role = qty * base_rate
+            manpowerHourlyBase += (qty * rate); 
             manpowerDetails.push({
                 role: roleName,
                 qty: qty,
-                rate: rate,
+                rate: rate, // Internal Base Rate
                 totalRate: qty * rate
             });
         }
@@ -283,19 +312,13 @@ function calculate() {
         return;
     }
 
-    let totalHoursRecorded = 0;
-    periods.forEach(p => {
-        const hEl = document.getElementById(`hrs_${p}`);
-        const hours = hEl ? (parseFloat(hEl.value) || 0) : 0;
-        totalHoursRecorded += hours;
-    });
+    const totalManpowerInternalCost = manpowerHourlyBase * totalProjectHours;
 
-    if (totalHoursRecorded === 0) {
-        showError("Please enter Total Hours for at least one period to calculate costs.");
-        return;
-    }
-
-    let materialBaseCost = 0;
+    // 4. Calculate Material INTERNAL Cost
+    // Assumption: Material inputs are "Unit Cost * Qty". 
+    // Is this recurring per period? Usually yes.
+    // We calculate cost per period, then multiply by number of periods.
+    let materialPerPeriodCost = 0;
     let materialDetails = [];
 
     document.querySelectorAll('.material-row').forEach(row => {
@@ -308,7 +331,7 @@ function calculate() {
         
         if (qty > 0 && cost > 0) {
             const lineTotal = qty * cost;
-            materialBaseCost += lineTotal;
+            materialPerPeriodCost += lineTotal;
             materialDetails.push({
                 name: nameInput.value || "Item",
                 qty: qty,
@@ -318,57 +341,42 @@ function calculate() {
         }
     });
 
-    let periodResults = {};
-    let totalProjectCost = 0;
+    const totalMaterialInternalCost = materialPerPeriodCost * periods.length;
 
-    periods.forEach(p => {
-        const hEl = document.getElementById(`hrs_${p}`);
-        const hours = hEl ? (parseFloat(hEl.value) || 0) : 0;
-        const pEl = document.getElementById(`pax_${p}`);
-        const pax = pEl ? (parseFloat(pEl.value) || 0) : 0;
-
-        const pManpower = manpowerHourlyRate * hours;
-        const pMaterial = materialBaseCost; 
-        const pProjectCost = pManpower + pMaterial;
-        const pTotalBase = pProjectCost > 0 ? (pProjectCost / 0.30) : 0;
-        
-        totalProjectCost += pProjectCost;
-
-        periodResults[p] = {
-            projectCost: pProjectCost,
-            totalBase: pTotalBase,
-            hours: hours,
-            pax: pax,
-            manpowerCost: pManpower,
-            materialCost: pMaterial
-        };
-    });
-
-    const grandProjectCost = Object.values(periodResults).reduce((acc, curr) => acc + curr.projectCost, 0);
-    const grandTotalBase = grandProjectCost > 0 ? (grandProjectCost / 0.30) : 0;
+    // 5. Calculate Project Totals
+    const grandProjectCost = totalManpowerInternalCost + totalMaterialInternalCost;
     
-    const enterprise = grandTotalBase * 0.30;
-    const innovation = grandTotalBase * 0.30;
-    const profit = grandTotalBase * 0.10;
+    // Revenue Requirement (30% Rule)
+    // Grand Project Cost is 30% of Total Value
+    const grandTotalRevenue = grandProjectCost / 0.30;
+    
+    // 6. Calculate LOAD FACTOR for Hourly Rates
+    // Formula: Total Revenue / Total Manpower Internal Cost
+    // This scales the hourly rate to cover materials + overhead + profit
+    const loadFactor = totalManpowerInternalCost > 0 ? (grandTotalRevenue / totalManpowerInternalCost) : 0;
 
-    const gstAmt = useGst ? (grandTotalBase * 0.09) : 0;
-    const finalTotal = grandTotalBase + gstAmt;
+    // 7. Breakdown Components
+    const enterprise = grandTotalRevenue * 0.30;
+    const innovation = grandTotalRevenue * 0.30;
+    const profit = grandTotalRevenue * 0.10;
+    const gstAmt = useGst ? (grandTotalRevenue * 0.09) : 0;
+    const finalTotalWithGst = grandTotalRevenue + gstAmt;
 
-    document.getElementById('resTotalValue').innerText = formatCurrency(finalTotal);
+    // --- RENDER RESULTS ---
+
+    document.getElementById('resTotalValue').innerText = formatCurrency(finalTotalWithGst);
     document.getElementById('resGstNote').innerText = useGst ? '(Includes 9% GST)' : '(No GST Applied)';
     document.getElementById('resProjectCost').innerText = formatCurrency(grandProjectCost);
     
-    let totalManpower = Object.values(periodResults).reduce((acc, curr) => acc + curr.manpowerCost, 0);
-    let totalMaterial = Object.values(periodResults).reduce((acc, curr) => acc + curr.materialCost, 0);
+    document.getElementById('resManpower').innerText = formatCurrency(totalManpowerInternalCost);
+    document.getElementById('resMaterial').innerText = formatCurrency(totalMaterialInternalCost);
     
-    document.getElementById('resManpower').innerText = formatCurrency(totalManpower);
-    document.getElementById('resMaterial').innerText = formatCurrency(totalMaterial);
-    
+    // Internal Breakdown - Manpower List
     const manpowerListEl = document.getElementById('manpowerDetailsList');
     manpowerListEl.innerHTML = '';
     if (manpowerDetails.length > 0) {
         manpowerDetails.forEach(d => {
-            const roleTotalCost = d.totalRate * totalHoursRecorded;
+            const roleTotalCost = d.totalRate * totalProjectHours;
             manpowerListEl.innerHTML += `
                 <div class="flex justify-between items-center">
                     <span>${d.qty}x ${d.role} <span class="text-slate-400">@ ${formatCurrency(d.rate)}/hr</span></span>
@@ -378,13 +386,12 @@ function calculate() {
         });
         manpowerListEl.innerHTML += `
             <div class="text-[10px] text-right text-slate-400 mt-1 border-t border-slate-200 pt-1">
-                Total Hours: ${totalHoursRecorded} hrs
+                Total Hours: ${totalProjectHours} hrs
             </div>
         `;
-    } else {
-        manpowerListEl.innerHTML = '<div class="italic text-slate-400">No manpower data</div>';
     }
 
+    // Internal Breakdown - Material List
     const materialListEl = document.getElementById('materialDetailsList');
     materialListEl.innerHTML = '';
     if (materialDetails.length > 0) {
@@ -413,42 +420,63 @@ function calculate() {
     document.getElementById('resInnovation').innerText = formatCurrency(innovation);
     document.getElementById('resProfit').innerText = formatCurrency(profit);
 
+    // --- RENDER QUOTATIONS (CLIENT FACING) ---
     const breakdownContent = document.getElementById('unitBreakdownContent');
     breakdownContent.innerHTML = '';
     
     periods.forEach(p => {
-        const data = periodResults[p];
-        const periodTotalWithGst = data.totalBase + (useGst ? (data.totalBase * 0.09) : 0);
-        
+        const pData = periodData[p];
         let periodLabel = p.startsWith('base') 
             ? `Base Period ${p.replace('base','')}` 
             : `Option Period ${p.replace('opt','')}`;
         
+        // Calculate Total Revenue allocated to this period 
+        // This is tricky because we calculated Revenue globally based on 30/30/30/10.
+        // We can reverse it: 
+        // Period Internal Cost = (ManpowerHr * pHours) + MaterialPerPeriod
+        // Period Revenue = Period Internal Cost / 0.30
+        
+        const periodInternalManpower = manpowerHourlyBase * pData.hours;
+        const periodInternalCost = periodInternalManpower + materialPerPeriodCost;
+        const periodRevenueBase = periodInternalCost / 0.30;
+        const periodRevenueWithGst = periodRevenueBase + (useGst ? (periodRevenueBase * 0.09) : 0);
+
         let html = `<div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
             <div class="flex justify-between items-center mb-2">
                 <span class="font-bold text-slate-700 text-xs uppercase">${periodLabel}</span>
-                <span class="text-xs text-slate-500 font-medium">Total: ${formatCurrency(periodTotalWithGst)}</span>
+                <span class="text-xs text-slate-500 font-medium">Total: ${formatCurrency(periodRevenueWithGst)}</span>
             </div>
             <div class="bg-white border border-slate-200 rounded p-2 text-sm space-y-1">`;
         
         if (unitType === 'hour') {
-            if (data.hours > 0) {
-                const rate = periodTotalWithGst / data.hours;
-                html += `<div class="flex justify-between font-bold text-blue-700"><span>Price Per Hour</span> <span>${formatCurrency(rate)}</span></div>`;
-                html += `<div class="text-[10px] text-slate-400 text-right">based on ${data.hours} hours</div>`;
+            if (pData.hours > 0) {
+                html += `<div class="mb-2 font-bold text-[11px] text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1">Client Hourly Rates (Loaded)</div>`;
+                
+                // Show Loaded Rate for EACH Role
+                manpowerDetails.forEach(role => {
+                    const loadedRate = role.rate * loadFactor;
+                    const loadedRateWithGst = loadedRate + (useGst ? (loadedRate * 0.09) : 0);
+                    
+                    html += `<div class="flex justify-between font-bold text-blue-700 items-center mb-1">
+                        <span>${role.qty}x ${role.role}</span> 
+                        <span>${formatCurrency(loadedRateWithGst)}/hr</span>
+                    </div>`;
+                });
+                
+                html += `<div class="text-[10px] text-slate-400 text-right mt-1">Includes materials & overheads</div>`;
             } else {
                 html += `<div class="text-xs text-red-400 italic">Enter hours to calculate rate</div>`;
             }
         } else if (unitType === 'pax') {
-            if (data.pax > 0) {
-                const rate = periodTotalWithGst / data.pax;
-                html += `<div class="flex justify-between font-bold text-blue-700"><span>Price Per Pax</span> <span>${formatCurrency(rate)}</span></div>`;
-                html += `<div class="text-[10px] text-slate-400 text-right">based on ${data.pax} pax</div>`;
+            if (pData.pax > 0) {
+                const ratePerPax = periodRevenueWithGst / pData.pax;
+                html += `<div class="flex justify-between font-bold text-blue-700"><span>Price Per Pax</span> <span>${formatCurrency(ratePerPax)}</span></div>`;
+                html += `<div class="text-[10px] text-slate-400 text-right">based on ${pData.pax} pax</div>`;
             } else {
                 html += `<div class="text-xs text-red-400 italic">Enter pax to calculate rate</div>`;
             }
         } else {
-            html += `<div class="flex justify-between font-bold text-blue-700"><span>Lump Sum Package</span> <span>${formatCurrency(periodTotalWithGst)}</span></div>`;
+            html += `<div class="flex justify-between font-bold text-blue-700"><span>Lump Sum Package</span> <span>${formatCurrency(periodRevenueWithGst)}</span></div>`;
         }
 
         html += `</div></div>`;
