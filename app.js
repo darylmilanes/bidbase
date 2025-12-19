@@ -28,11 +28,13 @@ function takeScreenshot() {
     hiddenElements.forEach(el => el.remove());
 
     const container = document.createElement('div');
+    // Hide off-screen but keep in DOM for rendering
     container.style.position = 'absolute';
     container.style.top = '0'; 
     container.style.left = '0';
     container.style.zIndex = '-50'; 
     
+    // Force styling for a clean A4-like capture
     clone.style.width = '800px'; 
     clone.style.maxWidth = 'none';
     clone.style.height = 'auto';
@@ -48,7 +50,7 @@ function takeScreenshot() {
     document.body.appendChild(container);
 
     html2canvas(clone, {
-        scale: 2, 
+        scale: 2, // High resolution
         useCORS: true,
         backgroundColor: '#ffffff',
         scrollY: 0
@@ -83,7 +85,7 @@ function executeReset() {
     
     document.getElementById('gstToggle').checked = false;
 
-    // FIX: Force clear the container first
+    // FIX: Force clear the container to prevent re-rendering old values
     document.getElementById('durationInputs').innerHTML = '';
     
     renderDurationFields();
@@ -130,6 +132,7 @@ function renderDurationFields() {
     for(let i=1; i<=optCount; i++) periods.push({id: `opt${i}`, label: `Option Period ${i}`});
 
     periods.forEach(p => {
+        // Feature: Preserve values if they exist in the DOM
         const existingHr = document.getElementById(`hrs_${p.id}`)?.value || '';
         const existingPax = document.getElementById(`pax_${p.id}`)?.value || '';
 
@@ -138,7 +141,8 @@ function renderDurationFields() {
             <div class="text-xs font-bold text-slate-500 uppercase mb-2">${p.label}</div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">Total Hours</label>
+                    <!-- Updated Label to prevent double-counting confusion -->
+                    <label class="block text-xs text-slate-400 mb-1">Total Hours (Volume)</label>
                     <input type="number" inputmode="decimal" id="hrs_${p.id}" value="${existingHr}" class="w-full bg-white border border-slate-200 rounded p-2 focus:ring-1 focus:ring-blue-500 outline-none hours-input" placeholder="0">
                 </div>
                 <div>
@@ -249,8 +253,8 @@ function calculate() {
 
     // 2. Aggregate Duration Data (Hours & Pax) across ALL periods
     let totalProjectHours = 0;
-    let totalProjectPax = 0; // Not used for calculation, but for verification
-    let periodData = {}; // Store individual period data for later breakdown
+    let totalProjectPax = 0; 
+    let periodData = {}; 
 
     let missingHours = false;
 
@@ -312,11 +316,11 @@ function calculate() {
         return;
     }
 
+    // Logic: Hourly Base Rate * Total Project Hours
     const totalManpowerInternalCost = manpowerHourlyBase * totalProjectHours;
 
     // 4. Calculate Material INTERNAL Cost
     // Assumption: Material inputs are "Unit Cost * Qty". 
-    // Is this recurring per period? Usually yes.
     // We calculate cost per period, then multiply by number of periods.
     let materialPerPeriodCost = 0;
     let materialDetails = [];
@@ -431,11 +435,6 @@ function calculate() {
             : `Option Period ${p.replace('opt','')}`;
         
         // Calculate Total Revenue allocated to this period 
-        // This is tricky because we calculated Revenue globally based on 30/30/30/10.
-        // We can reverse it: 
-        // Period Internal Cost = (ManpowerHr * pHours) + MaterialPerPeriod
-        // Period Revenue = Period Internal Cost / 0.30
-        
         const periodInternalManpower = manpowerHourlyBase * pData.hours;
         const periodInternalCost = periodInternalManpower + materialPerPeriodCost;
         const periodRevenueBase = periodInternalCost / 0.30;
@@ -454,6 +453,7 @@ function calculate() {
                 
                 // Show Loaded Rate for EACH Role
                 manpowerDetails.forEach(role => {
+                    // Apply global load factor to specific role rate
                     const loadedRate = role.rate * loadFactor;
                     const loadedRateWithGst = loadedRate + (useGst ? (loadedRate * 0.09) : 0);
                     
